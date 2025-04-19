@@ -6,7 +6,6 @@ import io.ktor.client.call.body
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.request.accept
-import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.setBody
@@ -34,16 +33,16 @@ object KtorClient {
      *
      * @return A list of Feed objects.
      */
-    suspend fun getFeeds(): List<Feed> {
-        return try {
-            val data = httpClient.get("https://api.npoint.io/a8cea79c033ace1c8b8b").body<List<Feed>>()
-            Log.i("GetFeeds", "API Response: $data") // Log the API response
-            data
-        } catch (e: Exception) {
-            Log.e("GetFeeds", "Error fetching feeds: ${e.message}") // Log the error
-            emptyList()
-        }
-    }
+//    suspend fun getFeeds(): List<Feed> {
+//        return try {
+//            val data = httpClient.get("https://api.npoint.io/a8cea79c033ace1c8b8b").body<List<Feed>>()
+//            Log.i("GetFeeds", "API Response: $data") // Log the API response
+//            data
+//        } catch (e: Exception) {
+//            Log.e("GetFeeds", "Error fetching feeds: ${e.message}") // Log the error
+//            emptyList()
+//        }
+//    }
 
     /**
      * Sends feedback to the server.

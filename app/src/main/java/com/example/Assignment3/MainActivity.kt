@@ -35,13 +35,15 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.Assignment3.DataStoreInstance.DARK_MODE
 import com.example.Assignment3.ui.theme.InfoDayTheme
+import com.example.infoday.screens.SearchScreen
+import com.example.infoday.screens.UserScreen
 
 class MainActivity : ComponentActivity() {
     @Preview(showBackground = true)
     @Composable
     fun DeptPreview() {
         InfoDayTheme(darkTheme = true) {
-            DeptScreen(rememberNavController())
+
         }
     }
 
@@ -139,16 +141,16 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                     ) {
                         composable("HighlightedEquipment") {
-//                          HighlightedEquipmentScreen()
+                          HighlightedEquipmentScreen()
                         }
                         composable("Location") {
                             MapScreen()
                         }
-                        composable("search") {
-                            Text("Search Screen")
+                        composable("Search") {
+                            SearchScreen()
                         }
-                        composable("user") {
-                            Text("User Profile Screen")
+                        composable("User") {
+                            UserScreen()
                         }
                     }
                 }
