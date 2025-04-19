@@ -1,18 +1,20 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -25,15 +27,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.infoday.DataStoreInstance.DARK_MODE
-import com.example.infoday.ui.theme.InfoDayTheme
+import com.example.Assignment3.DataStoreInstance.DARK_MODE
+import com.example.Assignment3.ui.theme.InfoDayTheme
 
-//API 36
 class MainActivity : ComponentActivity() {
     @Preview(showBackground = true)
     @Composable
@@ -42,48 +44,53 @@ class MainActivity : ComponentActivity() {
             DeptScreen(rememberNavController())
         }
     }
-    @OptIn(ExperimentalMaterial3Api::class)
+
+    data class NavItem(val title: String, val route: String)
+
     @Composable
     fun BottomNavBar(navController: NavController) {
         val items = listOf(
-            NavItem("Home", "home"),
-            NavItem("Events", "dept"),
-            NavItem("Itin", "itinerary"),
-            NavItem("Map", "map"),
-            NavItem("Info", "info")
+            NavItem("Highlighted Equipments", "HighlightedEquipment"),
+            NavItem("Location", "Location"),
+            NavItem("Search", "Search"),
+            NavItem("User", "User")
         )
 
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
 
-        NavigationBar {
-            items.forEachIndexed { index, item ->
+        NavigationBar(
+            modifier = Modifier.height(56.dp)
+        ) {
+            items.forEach { item ->
                 NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Favorite, contentDescription = item.title) },
-                    modifier = Modifier.testTag(item.title),
-                    label = { Text(item.title) },
+                    icon = {},
+                    label = {
+                        Text(
+                            text = item.title,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    },
+                    modifier = Modifier
+                        .testTag(item.title)
+                        .padding(horizontal = 4.dp),
                     selected = currentRoute == item.route,
                     onClick = {
                         navController.navigate(item.route) {
-                            // Pop up to the start destination of the graph to
-                            // avoid building up a large stack of destinations
-                            // on the back stack as users select items
                             popUpTo(navController.graph.startDestinationId) {
                                 saveState = true
                             }
-                            // Avoid multiple copies of the same destination when
-                            // reselecting the same item
                             launchSingleTop = true
-                            // Restore state when reselecting a previously selected item
                             restoreState = true
                         }
-                    }
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f)
+                    )
                 )
             }
         }
     }
-
-    data class NavItem(val title: String, val route: String)
 
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,14 +105,11 @@ class MainActivity : ComponentActivity() {
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentRoute = navBackStackEntry?.destination?.route
 
-                // Get the title based on current route
                 val currentTitle = when {
-                    currentRoute?.startsWith("event/") == true -> "Event Details"
-                    currentRoute == "home" -> "Home"
-                    currentRoute == "dept" -> "Departments"
-                    currentRoute == "itinerary" -> "Itinerary"
-                    currentRoute == "map" -> "Map"
-                    currentRoute == "info" -> "Information"
+                    currentRoute == "HighlightedEquipment" -> "Highlighted Equipments"
+                    currentRoute == "Location" -> "Location"
+                    currentRoute == "Search" -> "Search"
+                    currentRoute == "User" -> "User"
                     else -> ""
                 }
 
@@ -131,49 +135,24 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "home",
+                        startDestination = "HighlightedEquipment",
                         modifier = Modifier.padding(innerPadding),
                     ) {
-                        composable("home") {
-                            Greeting("Android")
+                        composable("HighlightedEquipment") {
+//                          HighlightedEquipmentScreen()
                         }
-                        composable("info") {
-                            InfoScreen()
-                        }
-                        composable("map") {
+                        composable("Location") {
                             MapScreen()
                         }
-                        composable("dept") { DeptScreen(navController) }
-                        composable("event/{deptId}") { backStackEntry ->
-                            EventScreen(
-                                snackbarHostState,
-                                backStackEntry.arguments?.getString("deptId")
-                            )
+                        composable("search") {
+                            Text("Search Screen")
                         }
-                        composable("home") { FeedScreen() }
-                        composable("itinerary") {
-                            ItineraryScreen(snackbarHostState)
+                        composable("user") {
+                            Text("User Profile Screen")
                         }
                     }
                 }
             }
         }
-    }
-}
-
-
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    InfoDayTheme {
-        Greeting("Android")
     }
 }

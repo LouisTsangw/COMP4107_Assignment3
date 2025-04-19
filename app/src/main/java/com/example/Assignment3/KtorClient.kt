@@ -1,4 +1,4 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import android.util.Log
 import io.ktor.client.HttpClient

@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.test.espresso.Espresso
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.example.infoday.MainActivity
+import com.example.Assignment3.MainActivity
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

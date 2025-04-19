@@ -1,4 +1,4 @@
-package com.example.infoday.ui.theme
+package com.example.Assignment3.ui.theme
 
 import android.app.Activity
 import android.os.Build

@@ -17,7 +17,7 @@
             android:name="com.google.android.geo.API_KEY"
             android:value="AIzaSyDGDLntNAoePiQJv9q-0tSx2vp06AdD0nU" />
         <activity
-            android:name=".MainActivity"
+            android:name="com.example.Assignment3.MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.InfoDay">

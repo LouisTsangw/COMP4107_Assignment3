@@ -1,4 +1,4 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable

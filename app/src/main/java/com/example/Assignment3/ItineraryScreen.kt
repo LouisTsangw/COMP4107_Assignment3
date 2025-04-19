@@ -1,4 +1,4 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.infoday.ui.theme.InfoDayTheme
+import com.example.Assignment3.ui.theme.InfoDayTheme
 import kotlinx.coroutines.launch
 
 @Composable

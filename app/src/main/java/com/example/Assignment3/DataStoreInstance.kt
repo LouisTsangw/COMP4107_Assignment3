@@ -1,4 +1,4 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import android.content.Context
 import androidx.datastore.core.DataStore

@@ -1,4 +1,4 @@
-package com.example.infoday
+package com.example.Assignment3
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -19,7 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.room.Entity
 import androidx.room.PrimaryKey
-import com.example.infoday.ui.theme.InfoDayTheme
+import com.example.Assignment3.ui.theme.InfoDayTheme
 import kotlinx.coroutines.launch
 
 @Entity(tableName = "event")

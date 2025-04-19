@@ -1,4 +1,4 @@
-package com.example.infoday.ui.theme
+package com.example.Assignment3.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
