@@ -54,6 +54,16 @@ android {
 }
 
 dependencies {
+
+    // Retrofit
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // Coroutines
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.4")
+
+    // ViewModel
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation("androidx.test.ext:junit-ktx:1.2.1")
     implementation("androidx.compose.ui:ui-test-junit4-android:1.7.8")
     implementation("androidx.test.espresso:espresso-core:3.6.1")
@@ -102,4 +112,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     implementation(kotlin("test"))
+
 }

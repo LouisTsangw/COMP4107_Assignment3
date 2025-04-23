@@ -1,13 +1,16 @@
 package com.example.infoday.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -18,13 +21,158 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
+import retrofit2.http.POST
+
+// Data classes for API requests/responses
+data class LoginRequest(val email: String, val password: String)
+data class RegisterRequest(
+    val email: String,
+    val password: String,
+    val contact: String,
+    val department: String,
+    val remark: String
+)
+data class AuthResponse(
+    val success: Boolean,
+    val message: String,
+    val token: String? = null,
+    val user: UserData? = null
+)
+data class UserData(
+    val _id: String,
+    val email: String,
+    val contact: String?,
+    val department: String?,
+    val remark: String?
+)
+
+// API Service interface
+interface AuthApiService {
+    @POST("login")
+    suspend fun login(@Body request: LoginRequest): AuthResponse
+
+    @POST("registeracc")
+    suspend fun register(@Body request: RegisterRequest): AuthResponse
+}
+
+// Create Retrofit instance
+private val retrofit = Retrofit.Builder()
+    .baseUrl("http://192.168.0.115:3000/api/") // Replace with your actual API URL
+    .addConverterFactory(GsonConverterFactory.create())
+    .build()
+
+private val authApiService = retrofit.create(AuthApiService::class.java)
 
 @Composable
-fun UserScreen() {
+fun UserScreen(
+    onLoginSuccess: () -> Unit = {},
+    onRegisterSuccess: () -> Unit = {}
+) {
     var showLogin by remember { mutableStateOf(true) }
+    var email by remember { mutableStateOf("defaultEmail@example.com") }
+    var password by remember { mutableStateOf("defaultPassword") }
+    var contact by remember { mutableStateOf("defaultContact") }
+    var department by remember { mutableStateOf("defaultDepartment") }
+    var remark by remember { mutableStateOf("defaultRemark") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
+
+    // Handle login
+    fun login(
+        onSuccess: (String) -> Unit, // 新增成功回调，带成功消息
+        showError: (String) -> Unit   // 错误提示回调
+    ) {
+        if (email.isBlank() || password.isBlank()) {
+            errorMessage = "Email and password cannot be empty"
+            showError("Email and password cannot be empty")
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = authApiService.login(LoginRequest(email, password))
+                if (response.success) {
+                    // 在UI线程显示成功提示
+                    withContext(Dispatchers.Main) {
+                        onSuccess(response.message ?: "Login successful")
+                        onLoginSuccess() // 原来的登录成功回调
+                    }
+                } else {
+                    errorMessage = response.message
+                    showError(response.message ?: "Login failed")
+                }
+            } catch (e: Exception) {
+                errorMessage = "Login failed: ${e.message}"
+                showError("Login failed: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    // Handle registration
+    fun register(
+        onSuccess: () -> Unit, // 新增成功回调
+        showAlert: (String) -> Unit // 新增提示回调
+    ) {
+        if (email.isBlank() || password.isBlank() || contact.isBlank()) {
+            errorMessage = "Required fields cannot be empty"
+            return
+        }
+
+        isLoading = true
+        errorMessage = null
+
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val response = authApiService.register(
+                    RegisterRequest(email, password, contact, department, remark)
+                )
+                if (response.success) {
+                    // 在UI线程显示成功提示
+                    withContext(Dispatchers.Main) {
+                        showAlert("注册成功！")
+                        email = ""
+                        password = ""
+                        contact = ""
+                        department = ""
+                        remark = ""
+                        onSuccess()
+                    }
+                } else {
+                    errorMessage = response.message
+                }
+            } catch (e: Exception) {
+                errorMessage = "Registration failed: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+    // Clear form
+    fun clearForm() {
+        email = ""
+        password = ""
+        contact = ""
+        department = ""
+        remark = ""
+        errorMessage = null
+    }
 
     Column(
         modifier = Modifier
@@ -37,24 +185,80 @@ fun UserScreen() {
             modifier = Modifier.padding(bottom = 16.dp)
         )
 
+        // Error message
+        errorMessage?.let { message ->
+            Text(
+                text = message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+        }
+
         if (showLogin) {
             LoginForm(
-                onSwitchToRegister = { showLogin = false }
+                email = email,
+                onEmailChange = { email = it },
+                password = password,
+                onPasswordChange = { password = it },
+                isLoading = isLoading,
+                onLogin = { login(  onSuccess = { message ->
+                    // 显示成功Toast
+                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                },
+                    showError = { message ->
+                        // 显示错误Toast
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }
+                ) },
+                onSwitchToRegister = {
+//                    clearForm()
+                    showLogin = false
+                }
             )
         } else {
             RegisterForm(
-                onSwitchToLogin = { showLogin = true }
+                email = email,
+                onEmailChange = { email = it },
+                password = password,
+                onPasswordChange = { password = it },
+                contact = contact,
+                onContactChange = { contact = it },
+                department = department,
+                onDepartmentChange = { department = it },
+                remark = remark,
+                onRemarkChange = { remark = it },
+                isLoading = false,
+                onRegister = { register( onSuccess = {
+                    // 注册成功后的操作
+                    showLogin = true // 切换回登录界面
+                },
+                    showAlert = { message ->
+                        // 显示提示，可以使用 Toast 或 AlertDialog
+                        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                    }) },
+                onSwitchToLogin = {
+                    clearForm()
+                    showLogin = true
+                }
             )
         }
     }
 }
 
 @Composable
-private fun LoginForm(onSwitchToRegister: () -> Unit) {
+private fun LoginForm(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    isLoading: Boolean,
+    onLogin: () -> Unit,
+    onSwitchToRegister: () -> Unit
+) {
     Column {
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = email,
+            onValueChange = onEmailChange,
             label = { Text("Email") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
@@ -63,8 +267,8 @@ private fun LoginForm(onSwitchToRegister: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = password,
+            onValueChange = onPasswordChange,
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -74,17 +278,26 @@ private fun LoginForm(onSwitchToRegister: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* Handle login */ },
-            modifier = Modifier.fillMaxWidth()
+            onClick = onLogin,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
         ) {
-            Text("Login")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Text("Login")
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
             onClick = onSwitchToRegister,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
             Text("Don't have an account? Register")
         }
@@ -92,11 +305,26 @@ private fun LoginForm(onSwitchToRegister: () -> Unit) {
 }
 
 @Composable
-private fun RegisterForm(onSwitchToLogin: () -> Unit) {
+private fun RegisterForm(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    contact: String,
+    onContactChange: (String) -> Unit,
+    department: String,
+    onDepartmentChange: (String) -> Unit,
+    remark: String,
+    onRemarkChange: (String) -> Unit,
+    isLoading: Boolean,
+    onRegister: () -> Unit,
+    onSwitchToLogin: () -> Unit
+) {
+
     Column {
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = email,
+            onValueChange = onEmailChange,
             label = { Text("Email") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
             modifier = Modifier.fillMaxWidth()
@@ -105,8 +333,8 @@ private fun RegisterForm(onSwitchToLogin: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = password,
+            onValueChange = onPasswordChange,
             label = { Text("Password") },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
@@ -116,8 +344,8 @@ private fun RegisterForm(onSwitchToLogin: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = contact,
+            onValueChange = onContactChange,
             label = { Text("Contact") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
             modifier = Modifier.fillMaxWidth()
@@ -126,8 +354,8 @@ private fun RegisterForm(onSwitchToLogin: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = department,
+            onValueChange = onDepartmentChange,
             label = { Text("Department") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -135,8 +363,8 @@ private fun RegisterForm(onSwitchToLogin: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = remark,
+            onValueChange = onRemarkChange,
             label = { Text("Remark") },
             modifier = Modifier.fillMaxWidth()
         )
@@ -144,17 +372,29 @@ private fun RegisterForm(onSwitchToLogin: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Button(
-            onClick = { /* Handle register */ },
-            modifier = Modifier.fillMaxWidth()
+            onClick = onRegister,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading &&
+                    email.isNotBlank() &&
+                    password.isNotBlank() &&
+                    contact.isNotBlank()
         ) {
-            Text("Register")
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 3.dp
+                )
+            } else {
+                Text("Register")
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
         TextButton(
             onClick = onSwitchToLogin,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
             Text("Already have an account? Login")
         }
