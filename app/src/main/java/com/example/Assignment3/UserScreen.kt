@@ -1,5 +1,6 @@
 package com.example.infoday.screens
 
+import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -29,6 +30,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
@@ -41,20 +43,21 @@ data class RegisterRequest(
     val password: String,
     val contact: String,
     val department: String,
-    val remark: String
+    val remark: String,
+    val isAdmin: Boolean
 )
 data class AuthResponse(
-    val success: Boolean,
-    val message: String,
-    val token: String? = null,
-    val user: UserData? = null
+    val token: String? = null,  // 唯一必需字段
+    val success: Boolean = true, // 添加默认值
+    val message: String? = null  // 可选字段
 )
 data class UserData(
     val _id: String,
     val email: String,
     val contact: String?,
     val department: String?,
-    val remark: String?
+    val remark: String?,
+    val isAdmin: Boolean
 )
 
 // API Service interface
@@ -62,14 +65,23 @@ interface AuthApiService {
     @POST("login")
     suspend fun login(@Body request: LoginRequest): AuthResponse
 
-    @POST("registeracc")
+    @POST("users")
     suspend fun register(@Body request: RegisterRequest): AuthResponse
 }
 
+
 // Create Retrofit instance
 private val retrofit = Retrofit.Builder()
-    .baseUrl("http://192.168.0.115:3000/api/") // Replace with your actual API URL
+    .baseUrl("https://equipments-api.azurewebsites.net/api/")
     .addConverterFactory(GsonConverterFactory.create())
+    .client(OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            val request = chain.request().newBuilder()
+                .header("Content-Type", "application/json")
+                .build()
+            chain.proceed(request)
+        }
+        .build())
     .build()
 
 private val authApiService = retrofit.create(AuthApiService::class.java)
@@ -80,47 +92,57 @@ fun UserScreen(
     onRegisterSuccess: () -> Unit = {}
 ) {
     var showLogin by remember { mutableStateOf(true) }
-    var email by remember { mutableStateOf("defaultEmail@example.com") }
-    var password by remember { mutableStateOf("defaultPassword") }
+    var email by remember { mutableStateOf("bringsell1@ow.ly") }
+    var password by remember { mutableStateOf("123456") }
     var contact by remember { mutableStateOf("defaultContact") }
     var department by remember { mutableStateOf("defaultDepartment") }
     var remark by remember { mutableStateOf("defaultRemark") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
-
+    fun saveToken(token: String) {
+        val sharedPref = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+        sharedPref.edit().putString("token", token).apply()
+    }
     // Handle login
-    fun login(
-        onSuccess: (String) -> Unit, // 新增成功回调，带成功消息
-        showError: (String) -> Unit   // 错误提示回调
-    ) {
+    fun login(onSuccess: (String) -> Unit, showError: (String) -> Unit) {
         if (email.isBlank() || password.isBlank()) {
-            errorMessage = "Email and password cannot be empty"
-            showError("Email and password cannot be empty")
+            errorMessage = "邮箱和密码不能为空"
+            showError(errorMessage!!)
             return
         }
 
         isLoading = true
         errorMessage = null
 
-        CoroutineScope(Dispatchers.IO).launch {
+        CoroutineScope(Dispatchers.IO).launch(Dispatchers.IO) {
             try {
                 val response = authApiService.login(LoginRequest(email, password))
-                if (response.success) {
-                    // 在UI线程显示成功提示
-                    withContext(Dispatchers.Main) {
-                        onSuccess(response.message ?: "Login successful")
-                        onLoginSuccess() // 原来的登录成功回调
+                println("完整API响应: $response")
+
+                withContext(Dispatchers.Main) {
+                    if (response.token != null) {
+                        saveToken(response.token)
+                        // 显示成功消息和部分token
+                        val message = "登录成功\nToken: ${response.token.take(20)}..."
+                        onSuccess(message)
+
+                        // 调试用：在Logcat打印完整token
+                        println("完整Token: ${response.token}")
+
+                        onLoginSuccess()
+                    } else {
+                        showError(response.message ?: "登录失败: 无效凭证")
                     }
-                } else {
-                    errorMessage = response.message
-                    showError(response.message ?: "Login failed")
                 }
             } catch (e: Exception) {
-                errorMessage = "Login failed: ${e.message}"
-                showError("Login failed: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    showError("登录错误: ${e.localizedMessage ?: "未知错误"}")
+                }
             } finally {
-                isLoading = false
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
         }
     }
@@ -141,7 +163,7 @@ fun UserScreen(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val response = authApiService.register(
-                    RegisterRequest(email, password, contact, department, remark)
+                    RegisterRequest(email, password, contact, department, remark,isAdmin = false)
                 )
                 if (response.success) {
                     // 在UI线程显示成功提示

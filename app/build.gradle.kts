@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.infoday"
+    namespace = "com.example.Assignment3"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.infoday"
+        applicationId = "com.example.Assignment3"
         minSdk = 24
         targetSdk = 33  // Should match compileSdk
         versionCode = 1
