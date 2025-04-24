@@ -44,11 +44,11 @@ fun RegisterScreen(
     onNavigateToLogin: () -> Unit = {},
     onBackPressed: () -> Unit = {}
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var contact by remember { mutableStateOf("") }
-    var department by remember { mutableStateOf("") }
-    var remark by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("Louis@gmail.com") }
+    var password by remember { mutableStateOf("123456") }
+    var contact by remember { mutableStateOf("12345678") }
+    var department by remember { mutableStateOf("COMP") }
+    var remark by remember { mutableStateOf("well") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -193,7 +193,7 @@ fun RegisterScreen(
             onClick = onNavigateToLogin,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Already have an account? Login")
+            Text("Here to Login! ")
         }
     }
 }

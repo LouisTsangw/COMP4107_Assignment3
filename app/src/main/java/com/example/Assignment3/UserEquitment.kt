@@ -30,16 +30,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.Assignment3.PreferencesManager
 import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.launch
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
-import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.POST
@@ -47,18 +48,19 @@ import retrofit2.http.Path
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HighlightedEquipmentScreen(
+fun UserEquipmentScreen(
     navController: NavController?,
-    equipmentId: String? = null,
-    location: String? = null ,
 ) {
     var equipmentList by remember { mutableStateOf<List<Equipment>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val preferencesManager = remember { PreferencesManager(context) }
+    val token = preferencesManager.getToken()
 
-    // Fetch equipment list
-    LaunchedEffect(equipmentId, location) { // Depend on both equipmentId and location
+    // Fetch user's reserved equipment list
+    LaunchedEffect(Unit) {
         coroutineScope.launch {
             try {
                 val retrofit = Retrofit.Builder()
@@ -66,25 +68,17 @@ fun HighlightedEquipmentScreen(
                     .addConverterFactory(GsonConverterFactory.create())
                     .build()
 
-                val service = retrofit.create(EquipmentApiService::class.java)
-
-                // Fetch all highlighted equipment
+                val service = retrofit.create(UserEquipmentApiService::class.java)
                 val response = service.getEquipments()
+
                 if (response.isSuccessful) {
-                    val allEquipments = response.body()?.equipments?.filter { it.highlight == true } ?: emptyList()
-                    equipmentList = when {
-                        equipmentId != null -> {
-                            allEquipments.filter { it._id == equipmentId }
-                        }
-                        location != null -> {
-                            allEquipments.filter { it.location == location }
-                        }
-                        else -> {
-                            allEquipments
-                        }
+                    val reservedIds = preferencesManager.getReservedEquipmentIds()
+                    val allEquipments = response.body()?.equipments ?: emptyList()
+                    equipmentList = allEquipments.filter { equipment ->
+                        reservedIds.contains(equipment._id)
                     }
                 } else {
-                    errorMessage = "Failed to load equipment"
+                    errorMessage = "Failed to load equipment: ${response.code()}"
                 }
             } catch (e: Exception) {
                 errorMessage = "Error: ${e.localizedMessage}"
@@ -97,19 +91,18 @@ fun HighlightedEquipmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = location?.let { "Location" } ?: "Highlighted Equipments"
-                    )
-                },
+                title = { Text("User") },
                 navigationIcon = {
-                    if (location != null) {
-                        IconButton(onClick = { navController?.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
+                    IconButton(onClick = {
+                        preferencesManager.logout()
+                        navController?.navigate("user") {
+                            popUpTo(0)
                         }
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Logout and return to login"
+                        )
                     }
                 }
             )
@@ -123,49 +116,56 @@ fun HighlightedEquipmentScreen(
         ) {
             when {
                 isLoading -> CircularProgressIndicator()
-                errorMessage != null -> Text(text = errorMessage ?: "Unknown error")
-                equipmentList.isEmpty() -> Text(
-                    if (location != null) "Sorry, no equipment found at $location!"
-                    else "No highlighted equipment found",
-                    fontSize = 24.sp
+                errorMessage != null -> Text(
+                    text = errorMessage ?: "Unknown error",
+                    color = MaterialTheme.colorScheme.error
                 )
-                else -> EquipmentList(equipmentList, navController, location)
+                equipmentList.isEmpty() -> Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "You haven't reserved any equipment yet",
+                        fontSize = 18.sp,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Text(
+                        text = "Reserve equipment to see them here",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
+                }
+                else -> UserEquipmentList(equipmentList, navController)
             }
         }
     }
 }
 
-
-
-    @Composable
-fun EquipmentList(equipments: List<Equipment>, navController: NavController?, location: String? = null) {
+@Composable
+fun UserEquipmentList(
+    equipments: List<Equipment>,
+    navController: NavController?
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(equipments) { equipment ->
-            EquipmentCard(equipment = equipment, navController = navController, location = location) // Pass location here
+            UserEquipmentCard(equipment = equipment, navController = navController)
         }
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EquipmentCard(
+fun UserEquipmentCard(
     equipment: Equipment,
-    navController: NavController?,
-    location: String? = null
+    navController: NavController?
 ) {
     Card(
         onClick = {
-            val route = if (location != null) {
-                "equipment/${equipment._id}?from=location"
-            } else {
-                "equipment/${equipment._id}"
-            }
-            navController?.navigate(route)
+            navController?.navigate("equipment/${equipment._id}?from=myreservations")
         },
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -178,7 +178,13 @@ fun EquipmentCard(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = equipment.contact_person ?: "No contact",
+                text = equipment.location ?: "Location not specified",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Contact: ${equipment.contact_person ?: "Not available"}",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
@@ -186,39 +192,29 @@ fun EquipmentCard(
 }
 
 
-data class ReservationRequest(
-    val startDate: String,
-    val returnDate: String,
-    val reservationId: String?
-)
 
 
-interface EquipmentApiService {
+
+interface UserEquipmentApiService {
     @POST("equipments/{equipmentId}/rent")
     suspend fun reserveEquipment(
-        @Path("equipmentId") equipmentId: String,
+        @Path("equipmentId") equipmentId: String,  // 使用正确的路径参数名
         @Body reservationRequest: ReservationRequest,
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String  // 添加认证头
     ): Response<ReservationRequest>
 
     @GET("equipments")
-    suspend fun getEquipments(): Response<EquipmentListResponse>
+    suspend fun getEquipments(): Response<UserEquipmentListResponse>
 
     @GET("equipments/{id}")
-    suspend fun getEquipmentById(@Path("id") id: String): Response<Equipment>
+    suspend fun getEquipmentById(@Path("id") id: String): Response<UserEquipment>
 
     @GET("users/{id}")
-    suspend fun getUserById(@Path("id") id: String): Response<Equipment>
-
-    @DELETE("equipments/{equipmentId}/rent")
-    suspend fun cancelReservation(
-        @Path("equipmentId") equipmentId: String,
-        @Header("Authorization") token: String
-    ): Response<Unit>
+    suspend fun getUserById(@Path("id") id: String): Response<UserEquipment>
 }
 
 
-data class Equipment(
+data class UserEquipment(
     @SerializedName("_id")
     val _id: String,
 
@@ -250,6 +246,6 @@ data class Equipment(
     val modified_at: String?
 )
 
-data class EquipmentListResponse(
+data class UserEquipmentListResponse(
     val equipments: List<Equipment>
 )

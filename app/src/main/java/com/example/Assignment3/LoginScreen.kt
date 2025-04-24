@@ -43,7 +43,7 @@ data class RegisterRequest(
     val contact: String,
     val department: String,
     val remark: String,
-    val isAdmin: Boolean
+    val isAdmin: Boolean = false
 )
 data class AuthResponse(
     val token: String? = null,
@@ -83,8 +83,8 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
     onNavigateToRegister: () -> Unit = {}
 ) {
-    var email by remember { mutableStateOf("bringsell1@ow.ly") }
-    var password by remember { mutableStateOf("123456") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -105,7 +105,7 @@ fun LoginScreen(
                 withContext(Dispatchers.Main) {
                     if (response.success && response.token != null ) {
                         val preferencesManager = PreferencesManager(context)
-                        preferencesManager.saveToken(response.token, response.id.toString())
+                        preferencesManager.saveUserInfo(response.token, response.id.toString(),email)
                         Log.d("LoginResponse", "Response: $response")
 
                         Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
@@ -132,7 +132,7 @@ fun LoginScreen(
 
     fun logout() {
         val preferencesManager = PreferencesManager(context)
-        preferencesManager.clearToken()
+        preferencesManager.logout()
     }
 
 
@@ -194,21 +194,20 @@ fun LoginScreen(
             onClick = onNavigateToRegister,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Don't have an account? Register")
+            Text("Here to Register! ")
         }
 
         Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = { logout() },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
-        ) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(24.dp))
-            } else {
-                Text("Logout")
-            }
-        }
-
+//        Button(
+//            onClick = { logout() },
+//            modifier = Modifier.fillMaxWidth(),
+//            enabled = !isLoading && email.isNotBlank() && password.isNotBlank()
+//        ) {
+//            if (isLoading) {
+//                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+//            } else {
+//                Text("Logout")
+//            }
+//        }
     }
 }

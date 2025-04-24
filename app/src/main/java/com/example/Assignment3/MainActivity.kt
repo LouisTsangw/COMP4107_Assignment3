@@ -4,7 +4,7 @@ import EquipmentDetailScreen
 import HighlightedEquipmentScreen
 import LocationScreen
 import SearchEquipmentScreen
-import UserReserveScreen
+import UserEquipmentScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,10 +31,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -45,7 +47,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.Assignment3.DataStoreInstance.DARK_MODE
-import com.example.Assignment3.MainActivity.NavItem
 import com.example.Assignment3.ui.theme.InfoDayTheme
 
 class MainActivity : ComponentActivity() {
@@ -60,7 +61,6 @@ class MainActivity : ComponentActivity() {
     data class NavItem(val title: String, val route: String, val icon: ImageVector)
 
 
-
     @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -68,6 +68,8 @@ class MainActivity : ComponentActivity() {
             val darkMode by DataStoreInstance.getBooleanPreferences(this, DARK_MODE)
                 .collectAsState(initial = false)
             val snackbarHostState = remember { SnackbarHostState() }
+            val preferencesManager = remember { PreferencesManager(this) }
+            val isLoggedIn = remember { mutableStateOf(preferencesManager.getToken() != null) }
 
             InfoDayTheme(darkTheme = darkMode == true) {
                 val navController = rememberNavController()
@@ -80,7 +82,8 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        startDestination = "highlightedequipment",
+                        // 根據登錄狀態決定起始頁面
+                        startDestination = if (isLoggedIn.value) "myequipment" else "highlightedequipment",
                         modifier = Modifier.padding(innerPadding),
                     ) {
                         composable("highlightedequipment?location={location}") { backStackEntry ->
@@ -111,23 +114,52 @@ class MainActivity : ComponentActivity() {
                             SearchEquipmentScreen(navController)
                         }
                         composable("user") {
-                            LoginScreen(
-                                onLoginSuccess = { navController.navigate("highlightedequipment") },
-                                onNavigateToRegister = { navController.navigate("register") }
-                            )
+                            val context = LocalContext.current
+                            val preferencesManager = remember { PreferencesManager(context) }
+                            val token = preferencesManager.getToken()
+                            if (token!=null) {
+                                UserEquipmentScreen(navController)
+                            } else {
+                                LoginScreen(
+                                    onLoginSuccess = {
+                                        isLoggedIn.value = true
+                                        navController.navigate("myequipment") {
+                                            popUpTo("highlightedequipment") { inclusive = true }
+                                        }
+                                    },
+                                    onNavigateToRegister = { navController.navigate("register") }
+                                )
+                            }
                         }
                         composable("register") {
                             RegisterScreen(
-                                onRegisterSuccess = { navController.navigate("user") },
-                                onNavigateToLogin= { navController.navigate("user") },
-                                onBackPressed= { navController.navigate("user") }
+                                onRegisterSuccess = {
+                                    isLoggedIn.value = true
+                                    navController.navigate("user") {
+                                        popUpTo("user") { inclusive = true }
+                                    }
+                                },
+                                onNavigateToLogin = { navController.navigate("user") },
+                                onBackPressed = { navController.navigate("user") }
                             )
                         }
-                        composable("userreserve") { UserReserveScreen(navController) }
+                        composable("myequipment") {
+                            UserEquipmentScreen(navController)
+                        }
                         composable("auth") {
                             AuthScreen(
-                                onLoginSuccess = { navController.navigate("highlightedequipment") },
-                                onRegisterSuccess = { navController.navigate("highlightedequipment") }
+                                onLoginSuccess = {
+                                    isLoggedIn.value = true
+                                    navController.navigate("myequipment") {
+                                        popUpTo("highlightedequipment") { inclusive = true }
+                                    }
+                                },
+                                onRegisterSuccess = {
+                                    isLoggedIn.value = true
+                                    navController.navigate("myequipment") {
+                                        popUpTo("highlightedequipment") { inclusive = true }
+                                    }
+                                }
                             )
                         }
                     }
@@ -135,62 +167,63 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-}
 
-@Composable
-fun BottomNavBar(navController: NavController) {
-    val items = listOf(
-        NavItem("Highlighted Equipments", "highlightedequipment", Icons.Filled.Home),
-        NavItem("Location", "location", Icons.Filled.LocationOn),
-        NavItem("Search", "search", Icons.Filled.Search),
-        NavItem("User", "user", Icons.Filled.Person)
-    )
+    @Composable
+    fun BottomNavBar(navController: NavController) {
+        val items = listOf(
+            NavItem("Highlighted Equipments", "highlightedequipment", Icons.Filled.Home),
+            NavItem("Location", "location", Icons.Filled.LocationOn),
+            NavItem("Search", "search", Icons.Filled.Search),
+            NavItem("User", "user", Icons.Filled.Person)
+        )
 
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
 
-    NavigationBar(
-        modifier = Modifier
-            .height(100.dp)
-            .background(Color.Black),
-        containerColor = Color.Black
-    ) {
-        items.forEach { item ->
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = item.title,
-                        modifier = Modifier.size(36.dp),
-                        tint = Color.White
-                    )
-                },
-                label = {
-                    Text(
-                        text = item.title,
-                        color = Color.White,
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.padding(top = 4.dp)
-                    )
-                },
-                selected = currentRoute == item.route,
-                onClick = {
-                    navController.navigate(item.route) {
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
+        NavigationBar(
+            modifier = Modifier
+                .height(100.dp)
+                .background(Color.Black),
+            containerColor = Color.Black
+        ) {
+            items.forEach { item ->
+                NavigationBarItem(
+                    icon = {
+                        Icon(
+                            imageVector = item.icon,
+                            contentDescription = item.title,
+                            modifier = Modifier.size(36.dp),
+                            tint = Color.White
+                        )
+                    },
+                    label = {
+                        Text(
+                            text = item.title,
+                            color = Color.White,
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    },
+                    selected = currentRoute == item.route,
+                    onClick = {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.startDestinationId) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                },
-                colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = Color.DarkGray,
-                    selectedIconColor = Color.White,
-                    unselectedIconColor = Color.White,
-                    selectedTextColor = Color.White,
-                    unselectedTextColor = Color.White
+                    },
+                    colors = NavigationBarItemDefaults.colors(
+                        indicatorColor = Color.DarkGray,
+                        selectedIconColor = Color.White,
+                        unselectedIconColor = Color.White,
+                        selectedTextColor = Color.White,
+                        unselectedTextColor = Color.White
+                    )
                 )
-            )
+            }
+
         }
     }
 }
