@@ -1,4 +1,5 @@
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -27,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import kotlinx.coroutines.launch
@@ -35,7 +37,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MapScreen(
+fun LocationScreen(
     navController: NavController?
 ) {
     var equipmentList by remember { mutableStateOf<List<Equipment>>(emptyList()) }
@@ -93,7 +95,7 @@ fun MapScreen(
                 isLoading -> CircularProgressIndicator()
                 errorMessage != null -> Text(text = errorMessage ?: "Unknown error")
                 equipmentList.isEmpty() -> Text("No highlighted equipment found")
-                else -> LocationList(equipmentList, navController) { selectedLocation ->
+                else -> LocationList(navController) { selectedLocation ->
                     filteredEquipmentList = equipmentList.filter { it.location == selectedLocation }
                 }
             }
@@ -102,29 +104,91 @@ fun MapScreen(
 }
 
 @Composable
-fun LocationList(equipments: List<Equipment>, navController: NavController?, onLocationSelected: (String) -> Unit) {
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(locations.distinct()) { location ->
-            LocationCard(
-                location = location,
-                onClick = {
-                    onLocationSelected(location)
-                    val equipmentForNav = equipments.firstOrNull { it.location == location }
-                    equipmentForNav?.let {
-                        // Pass the location name as an argument to the details screen
-                        navController?.navigate("equipment/${it._id}")
+fun LocationList(navController: NavController?, onLocationSelected: (String) -> Unit) {
+    val distinctLocations = remember { locations.distinct() }
+    val context = LocalContext.current
+    var isLoading by remember { mutableStateOf(false) }
+    var validHighlightedLocations by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var apiError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        isLoading = true
+        try {
+            val retrofit = Retrofit.Builder()
+                .baseUrl("https://equipments-api.azurewebsites.net/api/")
+                .addConverterFactory(GsonConverterFactory.create())
+                .build()
+            val service = retrofit.create(EquipmentApiService::class.java)
+            val response = service.getEquipments()
+            if (response.isSuccessful) {
+                // 修改这里：只收集有highlight设备的location
+                validHighlightedLocations = response.body()?.equipments
+                    ?.filter { it.highlight == true }  // 只筛选highlight为true的设备
+                    ?.mapNotNull { it.location }
+                    ?.filter { it.isNotBlank() }
+                    ?.toSet() ?: emptySet()
+            } else {
+                apiError = true
+            }
+        } catch (e: Exception) {
+            apiError = true
+        } finally {
+            isLoading = false
+        }
+    }
+
+    if (isLoading) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else if (apiError) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text(
+                text = "Failed to load locations",
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (distinctLocations.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No location records",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
-            )
+            } else {
+                items(distinctLocations) { location ->
+                    LocationCard(
+                        location = location,
+                        onClick = {
+                            if (location.isNotBlank() && validHighlightedLocations.contains(location)) {
+                                onLocationSelected(location)
+                                navController?.navigate("highlightedequipment?location=$location")
+                            } else {
+                                Toast.makeText(
+                                    context,
+                                    "Location $location' not available",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+                }
+            }
         }
     }
 }
-
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LocationCard(location: String, onClick: () -> Unit) {

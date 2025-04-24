@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
@@ -20,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,31 +32,26 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.launch
-import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.GET
-import retrofit2.http.Path
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HighlightedEquipmentScreen(
-    navController: NavController?,
-    equipmentId: String? = null,
-    location: String? = null ,
+fun SearchEquipmentScreen(
+    navController: NavController?
 ) {
     var equipmentList by remember { mutableStateOf<List<Equipment>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var searchQuery by remember { mutableStateOf(TextFieldValue("")) }
     val coroutineScope = rememberCoroutineScope()
 
     // Fetch equipment list
-    LaunchedEffect(equipmentId, location) { // Depend on both equipmentId and location
+    LaunchedEffect(Unit) {
         coroutineScope.launch {
             try {
                 val retrofit = Retrofit.Builder()
@@ -67,18 +64,7 @@ fun HighlightedEquipmentScreen(
                 // Fetch all highlighted equipment
                 val response = service.getEquipments()
                 if (response.isSuccessful) {
-                    val allEquipments = response.body()?.equipments?.filter { it.highlight == true } ?: emptyList()
-                    equipmentList = when {
-                        equipmentId != null -> {
-                            allEquipments.filter { it._id == equipmentId }
-                        }
-                        location != null -> {
-                            allEquipments.filter { it.location == location }
-                        }
-                        else -> {
-                            allEquipments
-                        }
-                    }
+                    equipmentList = response.body()?.equipments?.filter { it.highlight == true } ?: emptyList()
                 } else {
                     errorMessage = "Failed to load equipment"
                 }
@@ -93,19 +79,13 @@ fun HighlightedEquipmentScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        text = location?.let { "Location" } ?: "Highlighted Equipments"
-                    )
-                },
+                title = { Text("Highlighted Equipments") },
                 navigationIcon = {
-                    if (location != null) {
-                        IconButton(onClick = { navController?.popBackStack() }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back"
-                            )
-                        }
+                    IconButton(onClick = { navController?.navigate("HighlightedEquipment") }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back to List"
+                        )
                     }
                 }
             )
@@ -115,33 +95,48 @@ fun HighlightedEquipmentScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.TopCenter
         ) {
-            when {
-                isLoading -> CircularProgressIndicator()
-                errorMessage != null -> Text(text = errorMessage ?: "Unknown error")
-                equipmentList.isEmpty() -> Text(
-                    if (location != null) "Sorry, no equipment found at $location!"
-                    else "No highlighted equipment found",
-                    fontSize = 24.sp
+            Column(modifier = Modifier.fillMaxSize()) {
+                TextField(
+                    value = searchQuery,
+                    onValueChange = { newValue ->
+                        searchQuery = newValue
+                    },
+                    placeholder = { Text("Search bar") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    keyboardOptions = KeyboardOptions.Default
                 )
-                else -> EquipmentList(equipmentList, navController, location)
+
+                // Equipment List
+                when {
+                    isLoading -> CircularProgressIndicator()
+                    errorMessage != null -> Text(text = errorMessage ?: "Unknown error")
+                    equipmentList.isEmpty() -> Text("No highlighted equipment found")
+                    else -> {
+                        val filteredEquipments = equipmentList.filter {
+                            it.name?.contains(searchQuery.text, ignoreCase = true) == true ||
+                                    it.contact_person?.contains(searchQuery.text, ignoreCase = true) == true
+                        }
+                        SearchEquipmentList(filteredEquipments, navController)
+                    }
+                }
             }
         }
     }
 }
 
-
-
-    @Composable
-fun EquipmentList(equipments: List<Equipment>, navController: NavController?, location: String? = null) {
+@Composable
+fun SearchEquipmentList(equipments: List<Equipment>, navController: NavController?) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         items(equipments) { equipment ->
-            EquipmentCard(equipment = equipment, navController = navController, location = location) // Pass location here
+            SearchEquipmentCard(equipment = equipment, navController = navController)
         }
     }
 }
@@ -149,19 +144,10 @@ fun EquipmentList(equipments: List<Equipment>, navController: NavController?, lo
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EquipmentCard(
-    equipment: Equipment,
-    navController: NavController?,
-    location: String? = null
-) {
+fun SearchEquipmentCard(equipment: Equipment, navController: NavController?) {
     Card(
         onClick = {
-            val route = if (location != null) {
-                "equipment/${equipment._id}?from=location"
-            } else {
-                "equipment/${equipment._id}"
-            }
-            navController?.navigate(route)
+            navController?.navigate("equipment/${equipment._id}?from=search")
         },
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -181,52 +167,3 @@ fun EquipmentCard(
     }
 }
 
-
-
-interface EquipmentApiService {
-    @GET("equipments")
-    suspend fun getEquipments(): Response<EquipmentListResponse>
-
-    @GET("equipments/{id}")
-    suspend fun getEquipmentById(@Path("id") id: String): Response<Equipment>
-
-    @GET("users/{id}")
-    suspend fun getUserById(@Path("id") id: String): Response<Equipment>
-}
-
-
-data class Equipment(
-    @SerializedName("_id")
-    val _id: String,
-
-    @SerializedName("name")
-    val name: String?,
-
-    @SerializedName("location")
-    val location: String?,
-
-    @SerializedName("description")
-    val description: String?,
-
-    @SerializedName("image")
-    val image: String?,
-
-    @SerializedName("contact_person")
-    val contact_person: String?,
-
-    @SerializedName("color")
-    val color: String?,
-
-    @SerializedName("highlight")
-    val highlight: Boolean?,
-
-    @SerializedName("created_at")
-    val created_at: String?,
-
-    @SerializedName("modified_at")
-    val modified_at: String?
-)
-
-data class EquipmentListResponse(
-    val equipments: List<Equipment>
-)
