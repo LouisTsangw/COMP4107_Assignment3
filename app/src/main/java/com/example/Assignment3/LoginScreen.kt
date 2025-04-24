@@ -1,5 +1,6 @@
 package com.example.Assignment3
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -47,7 +48,8 @@ data class RegisterRequest(
 data class AuthResponse(
     val token: String? = null,
     val success: Boolean = true,
-    val message: String? = null
+    val message: String? = null,
+    val userId: String? = null
 )
 
 
@@ -72,6 +74,7 @@ private val retrofit = Retrofit.Builder()
         }
         .build())
     .build()
+
 
 internal val authApiService = retrofit.create(AuthApiService::class.java)
 
@@ -102,10 +105,11 @@ fun LoginScreen(
                 withContext(Dispatchers.Main) {
                     if (response.success && response.token != null ) {
                         val preferencesManager = PreferencesManager(context)
-                        preferencesManager.saveToken(response.token)
+                        preferencesManager.saveToken(response.token, response.userId.toString())
+                        Log.d("LoginResponse", "Response: $response")
 
                         Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()
-                        onLoginSuccess() // 这会导航到UserReserveScreen
+                        onLoginSuccess()
                     } else {
                         errorMessage = response.message ?: "Login failed. Please try again."
                     }

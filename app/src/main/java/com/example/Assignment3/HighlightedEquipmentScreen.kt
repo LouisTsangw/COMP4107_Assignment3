@@ -38,7 +38,9 @@ import kotlinx.coroutines.launch
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,15 +184,26 @@ fun EquipmentCard(
 }
 
 
+data class ReservationRequest(
+    val startDate: String,
+    val returnDate: String,
+)
+
 
 interface EquipmentApiService {
+    @POST("equipments/{id}/rent")
+    suspend fun reserve(
+        @Path("id") id: String,
+        @Body reservationRequest: ReservationRequest
+    ): Response<Equipment>
+
     @GET("equipments")
     suspend fun getEquipments(): Response<EquipmentListResponse>
 
     @GET("equipments/{id}")
     suspend fun getEquipmentById(@Path("id") id: String): Response<Equipment>
 
-    @GET("users/{id}")
+    @GET("users/{id}/rent")
     suspend fun getUserById(@Path("id") id: String): Response<Equipment>
 }
 

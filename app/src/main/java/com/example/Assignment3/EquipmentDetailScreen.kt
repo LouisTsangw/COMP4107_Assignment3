@@ -1,5 +1,6 @@
 
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.Assignment3.PreferencesManager
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
@@ -48,12 +50,13 @@ fun EquipmentDetailScreen(
     var equipment by remember { mutableStateOf<Equipment?>(null) }
     var isLoading by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var reservationMessage by remember { mutableStateOf<String?>(null) } // 用于显示预定结果
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val preferencesManager = PreferencesManager(context)
 
-    // 获取 token
     val token = preferencesManager.getToken()
+    val userId = preferencesManager.getId()
 
     LaunchedEffect(equipmentId) {
         coroutineScope.launch {
@@ -131,15 +134,58 @@ fun EquipmentDetailScreen(
             // Reserve button at the bottom center if token is available
             if (token != null) {
                 Button(
-                    onClick = { /* Handle reserve action */ },
+                    onClick = {
+                        // Handle reserve action
+                        coroutineScope.launch {
+                            try {
+                                val retrofit = Retrofit.Builder()
+                                    .baseUrl("https://equipments-api.azurewebsites.net/api/")
+                                    .addConverterFactory(GsonConverterFactory.create())
+                                    .client(OkHttpClient.Builder()
+                                        .addInterceptor { chain ->
+                                            val request = chain.request().newBuilder()
+                                                .addHeader("Authorization", "Bearer ${token}")
+                                                .addHeader("Content-Type", "application/json")
+                                                .build()
+                                            chain.proceed(request)
+                                        }
+                                        .build())
+                                    .build()
+
+                                val service = retrofit.create(EquipmentApiService::class.java)
+                                val reservationRequest = ReservationRequest(
+                                    startDate = "2025-4-24",
+                                    returnDate = "2025-5-10",
+                                )
+                                Log.d("ReservationRequest", "Start Date: ${reservationRequest.startDate}, Return Date: ${reservationRequest.returnDate},id:${userId}")
+                                val response = service.reserve(userId.toString(), reservationRequest)
+
+                                if (response.isSuccessful) {
+                                    reservationMessage = "Reservation successful!"
+                                } else {
+                                    val errorBody = response.errorBody()?.string()
+                                    reservationMessage = "Failed to reserve: ${response.code()} - $errorBody"
+                                }
+                            } catch (e: Exception) {
+                                reservationMessage = "Error: ${e.localizedMessage}"
+                            }
+                        }
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(16.dp)
                 ) {
                     Text(text = "Reserve")
                 }
-            }else{
+            }
 
+            // 显示预定结果
+            reservationMessage?.let {
+                Text(
+                    text = it,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                    style = MaterialTheme.typography.bodyLarge
+                )
             }
         }
     }
