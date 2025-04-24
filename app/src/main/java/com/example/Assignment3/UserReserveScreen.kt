@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,75 +65,61 @@ fun UserReserveScreen(
     val userId = preferencesManager.getId()
     val token = preferencesManager.getToken()
 
-    if (token != null) {
-        Text(text = "Token: $token")
-    } else {
-        Text(text = "No token found. Please log in.")
-    }
-    if (userId != null) {
-        LaunchedEffect(userId) {
-            coroutineScope.launch {
-                try {
-                    val retrofit = createRetrofit(token)
-                    val service = retrofit.create(EquipmentApiService::class.java)
-                    val response = service.getUserById(userId)
+    LaunchedEffect(userId) {
+        if (userId == null || token.isNullOrEmpty()) {
+            errorMessage = "Please log in first"
+            isLoading = false
+            return@LaunchedEffect
+        }
 
-                    if (response.isSuccessful) {
-                        equipment = response.body()
-                    } else {
-                        errorMessage = "Failed to load: ${response.code()}"
+        coroutineScope.launch {
+            try {
+                val retrofit = createRetrofit(token)
+                val service = retrofit.create(EquipmentApiService::class.java)
+                val response = service.getUserById(userId)
+
+                if (response.isSuccessful) {
+                    equipment = response.body()
+                } else {
+                    errorMessage = when (response.code()) {
+                        401 -> "Unauthorized: Please log in again"
+                        404 -> "User not found"
+                        else -> "Failed to load user data (${response.code()})"
                     }
-                } catch (e: Exception) {
-                    errorMessage = "Error: ${e.localizedMessage}"
-                } finally {
-                    isLoading = false
                 }
+            } catch (e: Exception) {
+                errorMessage = "Network error: ${e.localizedMessage}"
+            } finally {
+                isLoading = false
             }
         }
-    } else {
-        errorMessage = "User ID not found. Please log in."
-        isLoading = false
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(text = "User")
-                },
+                title = { Text("User") },
                 navigationIcon = {
                     IconButton(onClick = { navController?.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
                     }
                 }
             )
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+        Box(Modifier.fillMaxSize().padding(innerPadding)) {
             when {
                 isLoading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 errorMessage != null -> Text(
-                    text = errorMessage ?: "Unknown error",
-                    modifier = Modifier.align(Alignment.Center)
+                    errorMessage ?: "Error",
+                    Modifier.align(Alignment.Center),
+                    color = MaterialTheme.colorScheme.error
                 )
-                equipment == null -> Text(
-                    "Equipment not found",
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                else -> {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(bottom = 72.dp) // Space for bottom navigation
-                    ) {
+                equipment != null -> {
+                    Column(Modifier.fillMaxSize()) {
                         UserReserveCard(equipment = equipment!!)
+                        Spacer(modifier = Modifier.weight(1f))
+                        UnreserveButton()
                     }
                 }
             }
@@ -183,3 +170,14 @@ fun UserReserveDetailItem(label: String, value: String?) {
     }
 }
 
+@Composable
+fun UnreserveButton() {
+    Button(
+        onClick = { /* Handle unreserve action */ },
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Text("Unreserve")
+    }
+}

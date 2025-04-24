@@ -35,7 +35,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.Assignment3.PreferencesManager
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -54,7 +56,7 @@ fun EquipmentDetailScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val preferencesManager = PreferencesManager(context)
-
+    var isReserving by remember { mutableStateOf(false) }
     val token = preferencesManager.getToken()
     val userId = preferencesManager.getId()
 
@@ -133,6 +135,7 @@ fun EquipmentDetailScreen(
 
             // Reserve button at the bottom center if token is available
             if (token != null) {
+                isReserving = true
                 Button(
                     onClick = {
                         // Handle reserve action
@@ -143,28 +146,40 @@ fun EquipmentDetailScreen(
                                     .addConverterFactory(GsonConverterFactory.create())
                                     .client(OkHttpClient.Builder()
                                         .addInterceptor { chain ->
-                                            val request = chain.request().newBuilder()
-                                                .addHeader("Authorization", "Bearer ${token}")
-                                                .addHeader("Content-Type", "application/json")
-                                                .build()
-                                            chain.proceed(request)
+                                            chain.proceed(chain.request().newBuilder()
+                                                .header("Authorization", "Bearer $token")
+                                                .build())
                                         }
                                         .build())
                                     .build()
 
                                 val service = retrofit.create(EquipmentApiService::class.java)
-                                val reservationRequest = ReservationRequest(
-                                    startDate = "2025-4-24",
-                                    returnDate = "2025-5-10",
+                                val request = ReservationRequest(
+                                    startDate = "2100-12-29",
+                                    returnDate = "2100-12-30",
+                                    reservationId = equipmentId
                                 )
-                                Log.d("ReservationRequest", "Start Date: ${reservationRequest.startDate}, Return Date: ${reservationRequest.returnDate},id:${userId}")
-                                val response = service.reserve(userId.toString(), reservationRequest)
 
-                                if (response.isSuccessful) {
-                                    reservationMessage = "Reservation successful!"
-                                } else {
-                                    val errorBody = response.errorBody()?.string()
-                                    reservationMessage = "Failed to reserve: ${response.code()} - $errorBody"
+                                Log.d("Reservation", "Attempting to reserve equipment $equipmentId")
+                                val response = service.reserveEquipment(
+                                    equipmentId = equipmentId,
+                                    reservationRequest = request,
+                                    token = "Bearer $token"
+                                )
+
+                                withContext(Dispatchers.Main) {
+                                    if (response.isSuccessful) {
+                                        reservationMessage = "Reservation successful! ID: ${response.body()?.reservationId}"
+                                    } else {
+                                        val errorMsg = when (response.code()) {
+                                            404 -> "Equipment not found (ID: $equipmentId)"
+                                            401 -> "Please login again"
+                                            else -> response.errorBody()?.string() ?: "Unknown error"
+                                        }
+                                        reservationMessage = "Failed to reserve: $errorMsg"
+                                        Log.e("Reservation", "API error: $errorMsg")
+                                    }
+                                    isReserving = false
                                 }
                             } catch (e: Exception) {
                                 reservationMessage = "Error: ${e.localizedMessage}"

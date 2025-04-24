@@ -49,7 +49,7 @@ data class AuthResponse(
     val token: String? = null,
     val success: Boolean = true,
     val message: String? = null,
-    val userId: String? = null
+    val id: String? = "67ed50a1fc13ae6f905b5acf"
 )
 
 
@@ -105,7 +105,7 @@ fun LoginScreen(
                 withContext(Dispatchers.Main) {
                     if (response.success && response.token != null ) {
                         val preferencesManager = PreferencesManager(context)
-                        preferencesManager.saveToken(response.token, response.userId.toString())
+                        preferencesManager.saveToken(response.token, response.id.toString())
                         Log.d("LoginResponse", "Response: $response")
 
                         Toast.makeText(context, "Login successful", Toast.LENGTH_SHORT).show()

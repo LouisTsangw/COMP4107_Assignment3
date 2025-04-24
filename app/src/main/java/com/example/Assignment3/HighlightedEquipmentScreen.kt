@@ -40,6 +40,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -187,15 +188,17 @@ fun EquipmentCard(
 data class ReservationRequest(
     val startDate: String,
     val returnDate: String,
+    val reservationId: String?
 )
 
 
 interface EquipmentApiService {
-    @POST("equipments/{id}/rent")
-    suspend fun reserve(
-        @Path("id") id: String,
-        @Body reservationRequest: ReservationRequest
-    ): Response<Equipment>
+    @POST("equipments/{equipmentId}/rent")
+    suspend fun reserveEquipment(
+        @Path("equipmentId") equipmentId: String,  // 使用正确的路径参数名
+        @Body reservationRequest: ReservationRequest,
+        @Header("Authorization") token: String  // 添加认证头
+    ): Response<ReservationRequest>
 
     @GET("equipments")
     suspend fun getEquipments(): Response<EquipmentListResponse>
@@ -203,7 +206,7 @@ interface EquipmentApiService {
     @GET("equipments/{id}")
     suspend fun getEquipmentById(@Path("id") id: String): Response<Equipment>
 
-    @GET("users/{id}/rent")
+    @GET("users/{id}")
     suspend fun getUserById(@Path("id") id: String): Response<Equipment>
 }
 

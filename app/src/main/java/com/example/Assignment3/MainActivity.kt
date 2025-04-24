@@ -4,6 +4,7 @@ import EquipmentDetailScreen
 import HighlightedEquipmentScreen
 import LocationScreen
 import SearchEquipmentScreen
+import UserReserveScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -122,21 +123,7 @@ class MainActivity : ComponentActivity() {
                                 onBackPressed= { navController.navigate("user") }
                             )
                         }
-//                        composable(
-//                            "userreserve",
-//                            arguments = listOf(
-//                                navArgument("_id") { type = NavType.StringType },
-//                                navArgument("from") {
-//                                    type = NavType.StringType
-//                                    nullable = true
-//                                    defaultValue = null
-//                                }
-//                            )
-//                        ) { backStackEntry ->
-//                            UserReserveScreen(
-//                                navController = navController,
-//                            )
-//                        }
+                        composable("userreserve") { UserReserveScreen(navController) }
                         composable("auth") {
                             AuthScreen(
                                 onLoginSuccess = { navController.navigate("highlightedequipment") },
