@@ -142,9 +142,9 @@ fun LoginScreen(
             .padding(16.dp)
     ) {
         Text(
-            text = "Login",
+            text = "",
             style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 150.dp)
         )
 
         errorMessage?.let { message ->

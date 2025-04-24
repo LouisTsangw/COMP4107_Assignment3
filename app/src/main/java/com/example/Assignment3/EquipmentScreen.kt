@@ -108,8 +108,8 @@ fun EquipmentDetailScreen(
 
                 val service = retrofit.create(EquipmentApiService::class.java)
                 val request = ReservationRequest(
-                    startDate = "2200-12-29",
-                    returnDate = "2200-12-30",
+                    startDate = "2900-12-29",
+                    returnDate = "2900-12-30",
                     reservationId = equipmentId
                 )
 
@@ -124,7 +124,7 @@ fun EquipmentDetailScreen(
                     if (response.isSuccessful) {
                         preferencesManager.addReservedEquipment(equipmentId)
                         isReservedLocally = true
-                        reservationMessage = "Reservation successful! ID: ${response.body()?.reservationId}"
+                        reservationMessage = "Reservation successful!"
                     } else {
                         val errorMsg = when (response.code()) {
                             404 -> "Equipment not found (ID: $equipmentId)"
@@ -169,7 +169,6 @@ fun EquipmentDetailScreen(
 
                 withContext(Dispatchers.Main) {
                     if (response.isSuccessful) {
-                        // 从本地移除预约记录
                         preferencesManager.removeReservedEquipment(equipmentId)
                         isReservedLocally = false
                         reservationMessage = "Reservation canceled successfully"

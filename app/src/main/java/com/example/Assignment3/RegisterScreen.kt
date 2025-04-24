@@ -44,7 +44,7 @@ fun RegisterScreen(
     onNavigateToLogin: () -> Unit = {},
     onBackPressed: () -> Unit = {}
 ) {
-    var email by remember { mutableStateOf("Louis@gmail.com") }
+    var email by remember { mutableStateOf("Louiszw@gmail.com") }
     var password by remember { mutableStateOf("123456") }
     var contact by remember { mutableStateOf("12345678") }
     var department by remember { mutableStateOf("COMP") }

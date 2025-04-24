@@ -29,7 +29,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,7 +45,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.Assignment3.DataStoreInstance.DARK_MODE
 import com.example.Assignment3.ui.theme.InfoDayTheme
 
 class MainActivity : ComponentActivity() {
@@ -65,13 +63,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            val darkMode by DataStoreInstance.getBooleanPreferences(this, DARK_MODE)
-                .collectAsState(initial = false)
             val snackbarHostState = remember { SnackbarHostState() }
             val preferencesManager = remember { PreferencesManager(this) }
             val isLoggedIn = remember { mutableStateOf(preferencesManager.getToken() != null) }
 
-            InfoDayTheme(darkTheme = darkMode == true) {
+            InfoDayTheme() {
                 val navController = rememberNavController()
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -82,7 +78,6 @@ class MainActivity : ComponentActivity() {
                 ) { innerPadding ->
                     NavHost(
                         navController = navController,
-                        // 根據登錄狀態決定起始頁面
                         startDestination = if (isLoggedIn.value) "myequipment" else "highlightedequipment",
                         modifier = Modifier.padding(innerPadding),
                     ) {
@@ -134,13 +129,12 @@ class MainActivity : ComponentActivity() {
                         composable("register") {
                             RegisterScreen(
                                 onRegisterSuccess = {
-                                    isLoggedIn.value = true
                                     navController.navigate("user") {
-                                        popUpTo("user") { inclusive = true }
+                                        popUpTo("register") { inclusive = true }
                                     }
                                 },
                                 onNavigateToLogin = { navController.navigate("user") },
-                                onBackPressed = { navController.navigate("user") }
+                                onBackPressed = { navController.popBackStack() }
                             )
                         }
                         composable("myequipment") {

@@ -176,15 +176,15 @@ fun UserEquipmentCard(
                 text = equipment.name ?: "Unnamed Equipment",
                 style = MaterialTheme.typography.headlineSmall
             )
+//            Spacer(modifier = Modifier.height(4.dp))
+//            Text(
+//                text = equipment.location ?: "Location not specified",
+//                style = MaterialTheme.typography.bodyMedium,
+//                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+//            )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = equipment.location ?: "Location not specified",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Contact: ${equipment.contact_person ?: "Not available"}",
+                text = "${equipment.contact_person ?: "Not available"}",
                 style = MaterialTheme.typography.bodyMedium
             )
         }
