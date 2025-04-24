@@ -1,16 +1,15 @@
 package com.example.Assignment3
 
+import EquipmentDetailScreen
+import HighlightedEquipmentScreen
+import MapScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -19,7 +18,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -104,34 +102,10 @@ class MainActivity : ComponentActivity() {
 
             InfoDayTheme(darkTheme = darkMode == true) {
                 val navController = rememberNavController()
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentRoute = navBackStackEntry?.destination?.route
-
-                val currentTitle = when {
-                    currentRoute == "HighlightedEquipment" -> "Highlighted Equipments"
-                    currentRoute == "Location" -> "Location"
-                    currentRoute == "Search" -> "Search"
-                    currentRoute == "User" -> "User"
-                    else -> ""
-                }
-
                 Scaffold(
                     snackbarHost = { SnackbarHost(snackbarHostState) },
                     modifier = Modifier.fillMaxSize(),
                     topBar = {
-                        TopAppBar(
-                            title = { Text(currentTitle) },
-                            navigationIcon = {
-                                if (currentRoute?.startsWith("event/") == true) {
-                                    IconButton(onClick = { navController.popBackStack() }) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                            contentDescription = "Back"
-                                        )
-                                    }
-                                }
-                            },
-                        )
                     },
                     bottomBar = { BottomNavBar(navController = navController) }
                 ) { innerPadding ->
@@ -141,10 +115,15 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.padding(innerPadding),
                     ) {
                         composable("HighlightedEquipment") {
-                          HighlightedEquipmentScreen()
+                            HighlightedEquipmentScreen(navController)
+                        }
+
+                        composable("equipment/{equipmentId}") { backStackEntry ->
+                            val equipmentId = backStackEntry.arguments?.getString("equipmentId") ?: ""
+                            EquipmentDetailScreen(equipmentId, navController)
                         }
                         composable("Location") {
-                            MapScreen()
+                            MapScreen(navController)
                         }
                         composable("Search") {
                             SearchScreen()
